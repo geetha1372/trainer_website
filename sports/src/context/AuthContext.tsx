@@ -19,8 +19,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUser = async () => {
     try {
-      const response = await api.get('/api/auth/me');
-      setUser(response.data.user);
+      // In Django backend, there's no direct /me endpoint. 
+      // We might need to handle this differently or skip for now.
+      const response = await api.get('/api/profile/1/'); // Temporary placeholder or remove
+      setUser(response.data);
     } catch (error) {
       setUser(null);
     } finally {
@@ -33,16 +35,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await api.post('/api/auth/login', { email, password });
+    const response = await api.post('/api/login/', { email, password });
     setUser(response.data.user);
   };
 
   const signup = async (name: string, email: string, password: string, confirmPassword: string) => {
-    const response = await api.post('/api/auth/signup', {
-      name,
+    const response = await api.post('/api/register/', {
+      full_name: name,
       email,
       password,
-      confirmPassword,
+      confirm_password: confirmPassword,
     });
     setUser(response.data.user);
   };
