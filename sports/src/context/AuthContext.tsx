@@ -19,9 +19,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUser = async () => {
     try {
-      // In Django backend, there's no direct /me endpoint. 
-      // We might need to handle this differently or skip for now.
-      const response = await api.get('/api/profile/1/'); // Temporary placeholder or remove
+      const userId = localStorage.getItem('user_id');
+      if (!userId) throw new Error('No user ID');
+      const response = await api.get(`/api/profile/${userId}/`);
       setUser(response.data);
     } catch (error) {
       setUser(null);
@@ -36,7 +36,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const response = await api.post('/api/login/', { email, password });
-    setUser(response.data.user);
+    const { access, refresh, user } = response.data;
+    localStorage.setItem('auth_token', access);
+    localStorage.setItem('refresh_token', refresh);
+    localStorage.setItem('user_id', user.id.toString());
+    setUser(user);
   };
 
   const signup = async (name: string, email: string, password: string, confirmPassword: string) => {
@@ -46,19 +50,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       confirm_password: confirmPassword,
     });
-    setUser(response.data.user);
+    const { access, refresh, user_id } = response.data;
+    if (access) localStorage.setItem('auth_token', access);
+    if (refresh) localStorage.setItem('refresh_token', refresh);
+    if (user_id) localStorage.setItem('user_id', user_id.toString());
+    // Signup might not return the full user object, so we might need a separate profile fetch
+    if (user_id) {
+       const profileRes = await api.get(`/api/profile/${user_id}/`);
+       setUser(profileRes.data);
+    }
   };
 
   const logout = async () => {
     try {
-      await api.post('/api/auth/logout');
+      // await api.post('/api/auth/logout'); // Django might not have this, usually client-side clear is enough
     } catch (error) {
-      // Even if API call fails, clear user state
-      console.error('Logout API error (non-fatal):', error);
+      console.error('Logout API error:', error);
     } finally {
-      // Always clear user state and ensure cookies are cleared
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_id');
       setUser(null);
-      // Force a page reload to clear any cached auth state
       if (typeof window !== 'undefined') {
         window.location.href = '/';
       }
